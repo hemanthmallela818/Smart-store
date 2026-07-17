@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Volume2, Search, Database, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useData } from './context';
 
@@ -15,6 +15,7 @@ export default function VoiceAssistant() {
   const [statusMessage, setStatusMessage] = useState('Tap the microphone to issue voice commands');
   const [isCommandMatch, setIsCommandMatch] = useState(false);
   const [showConfirmPrompt, setShowConfirmPrompt] = useState(false);
+  const [aiResponse, setAiResponse] = useState('');
 
   const recognitionRef = useRef(null);
 
@@ -36,6 +37,7 @@ export default function VoiceAssistant() {
       setIsCommandMatch(false);
       setShowConfirmPrompt(false);
       setTranscript('');
+      setAiResponse('');
       setStatusMessage('Listening to your voice command...');
     };
 
@@ -99,6 +101,7 @@ export default function VoiceAssistant() {
     } else {
       try {
         setShowConfirmPrompt(false);
+        setAiResponse('');
         recognitionRef.current.start();
       } catch (err) {
         console.error("Failed to start speech recognition:", err);
@@ -124,6 +127,7 @@ export default function VoiceAssistant() {
   const processCommand = async (rawText) => {
     const text = rawText.toLowerCase().trim();
     setIsCommandMatch(true);
+    setAiResponse("Processing command...");
     setStatusMessage("Sending voice transcript to n8n...");
     setIsSpeaking(true); // Activate waveform speaking state
 
@@ -147,9 +151,10 @@ export default function VoiceAssistant() {
         const responseTextHeader = response.headers.get('X-Response-Text');
         if (responseTextHeader) {
           const originalText = decodeURIComponent(responseTextHeader);
-          setTranscript(originalText);
+          setAiResponse(originalText);
           setStatusMessage(`n8n response: "${originalText}"`);
         } else {
+          setAiResponse("Playing voice audio response from n8n...");
           setStatusMessage("n8n audio response received. Playing back...");
         }
         const audioBlob = await response.blob();
@@ -189,6 +194,7 @@ export default function VoiceAssistant() {
 
         const replyText = data.text || data.message || data.output || data.response || '';
         if (replyText) {
+          setAiResponse(replyText);
           setStatusMessage(`n8n: "${replyText}"`);
           speak(replyText);
           
@@ -200,6 +206,7 @@ export default function VoiceAssistant() {
             }
           }
         } else {
+          setAiResponse("Received empty reply payload from n8n.");
           setStatusMessage("Received empty reply payload from n8n.");
           setIsSpeaking(false);
         }
@@ -209,9 +216,11 @@ export default function VoiceAssistant() {
       // 3. Fallback: text response
       const rawResponseText = await response.text();
       if (rawResponseText) {
+        setAiResponse(rawResponseText);
         setStatusMessage(`n8n: "${rawResponseText}"`);
         speak(rawResponseText);
       } else {
+        setAiResponse("Webhook response loaded successfully.");
         setStatusMessage("Webhook response loaded successfully.");
         setIsSpeaking(false);
       }
@@ -237,7 +246,9 @@ export default function VoiceAssistant() {
       text.includes('ledger') || 
       text.includes('inventory')
     ) {
-      speak("Navigating to the Database Manager page.");
+      const resp = "Navigating to the Database Manager page.";
+      speak(resp);
+      setAiResponse(resp);
       setStatusMessage("Offline match: Navigation. Opening Data Manager...");
       setTimeout(() => {
         router.push('/data');
@@ -251,7 +262,9 @@ export default function VoiceAssistant() {
       text.includes('home') || 
       text.includes('main page')
     ) {
-      speak("You are already viewing the Analytics overview page.");
+      const resp = "You are already viewing the Analytics overview page.";
+      speak(resp);
+      setAiResponse(resp);
       setStatusMessage("Offline match: Navigation. Already on Analytics home.");
       return;
     }
@@ -263,7 +276,9 @@ export default function VoiceAssistant() {
       text.includes('reload') || 
       text.includes('fetch')
     ) {
-      speak("Synchronizing dashboard stats with your live Google Sheet now.");
+      const resp = "Synchronizing dashboard stats with your live Google Sheet now.";
+      speak(resp);
+      setAiResponse(resp);
       setStatusMessage("Offline match: Sync database. Syncing sheets...");
       fetchData(false);
       return;
@@ -274,6 +289,7 @@ export default function VoiceAssistant() {
       const profit = data.kpis.todaysProfit;
       const speech = `Today's net profit margin is ${profit > 0 ? Math.round(profit) : 0} rupees.`;
       speak(speech);
+      setAiResponse(speech);
       setStatusMessage(`Offline match: Today's Profit inquiry. Reading value...`);
       return;
     }
@@ -282,6 +298,7 @@ export default function VoiceAssistant() {
       const revenue = data.kpis.todaysRevenue;
       const speech = `Today's gross revenue totals ${revenue > 0 ? Math.round(revenue) : 0} rupees.`;
       speak(speech);
+      setAiResponse(speech);
       setStatusMessage(`Offline match: Today's Revenue inquiry. Reading value...`);
       return;
     }
@@ -290,6 +307,7 @@ export default function VoiceAssistant() {
       const valuation = data.kpis.totalStockValue;
       const speech = `The total cost valuation of your current stock is ${Math.round(valuation)} rupees.`;
       speak(speech);
+      setAiResponse(speech);
       setStatusMessage(`Offline match: Stock Valuation inquiry. Reading value...`);
       return;
     }
@@ -300,20 +318,25 @@ export default function VoiceAssistant() {
         ? `You currently have ${count} items running below safe stock levels.` 
         : "All inventory items are currently at safe stock levels.";
       speak(speech);
+      setAiResponse(speech);
       setStatusMessage(`Offline match: Low Stock inquiry. Reading value...`);
       return;
     }
 
     // Help command
     if (text.includes('help') || text.includes('suggest') || text.includes('what can i say')) {
-      speak("You can say read today's profit, navigate to database, or sync spreadsheet.");
+      const resp = "You can say: profit today, navigate to database, or sync spreadsheet.";
+      speak(resp);
+      setAiResponse(resp);
       setStatusMessage("Suggestions read aloud.");
       return;
     }
 
     // Command didn't match intents
     setIsCommandMatch(false);
-    speak(`I heard "${rawText}". Try saying: profit today, or navigate to database.`);
+    const fallbackResp = `I heard "${rawText}". Try saying: profit today, or navigate to database.`;
+    speak(fallbackResp);
+    setAiResponse(fallbackResp);
     setStatusMessage("Incomplete query. Choose a shortcut below or speak again.");
   };
 
@@ -324,100 +347,157 @@ export default function VoiceAssistant() {
   };
 
   return (
-    <div className={`voice-widget-card ${isListening ? 'active' : ''}`}>
-      <div className="voice-mic-container">
+    <div className={`campaign-speaker-card ${isListening ? 'active' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', justifyContent: 'space-between', minHeight: '320px', transition: 'all 0.3s ease' }}>
+      
+      {/* Card Header */}
+      <div className="campaign-header">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <span className="campaign-tag">Voice Agent Speaker</span>
+          <h2 style={{ fontSize: '1.45rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#ffffff' }}>
+            Active Session
+            <span className="wave-kpi-status-dot"></span>
+          </h2>
+        </div>
+        
+        {/* Dynamic Status Indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span className={`sync-dot ${isListening ? 'syncing' : ''}`} style={{
+            width: '6px',
+            height: '6px',
+            backgroundColor: isListening ? 'var(--rose)' : 'var(--emerald)',
+            borderRadius: '50%'
+          }}></span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.8)' }}>
+            {isListening ? 'Active' : 'Standby'}
+          </span>
+        </div>
+      </div>
+
+      {/* Horizontally Extended Speaker Button */}
+      <div style={{ width: '100%' }}>
         <button 
-          className={`voice-mic-button ${isListening ? 'listening' : ''} ${isSpeaking ? 'speaking' : ''}`}
+          className={`speaker-mic-btn ${isListening ? 'listening' : ''} ${isSpeaking ? 'speaking' : ''}`}
           onClick={toggleListen}
           disabled={!isSupported}
           title={isListening ? 'Stop Listening' : 'Click to Speak'}
         >
-          {isListening ? <Mic size={24} /> : <MicOff size={24} />}
+          {isListening ? (
+            <>
+              <Mic size={16} />
+              <span>Active Listening... Tap to Stop</span>
+            </>
+          ) : isSpeaking ? (
+            <>
+              <Volume2 size={16} />
+              <span>AI Speaker Talking...</span>
+            </>
+          ) : (
+            <>
+              <MicOff size={16} />
+              <span>Tap to Start Voice Agent</span>
+            </>
+          )}
         </button>
-        <span className="voice-mic-label">{isListening ? 'Listening' : 'Talk to AI'}</span>
-      </div>
-
-      <div className="voice-content-area">
-        {/* Status prompt indicator always visible above transcript box */}
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 0.4rem 0', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          <span className={`sync-dot ${isListening ? 'syncing' : ''}`} style={{ width: '6px', height: '6px', backgroundColor: isListening ? 'var(--blue)' : 'var(--text-muted)' }}></span>
+        <p style={{ fontSize: '0.72rem', opacity: 0.8, color: '#ffffff', marginTop: '0.4rem', textAlign: 'center' }}>
           {statusMessage}
         </p>
+      </div>
 
-        <div className="voice-transcript-wrapper">
-          {transcript ? (
-            <p className={`voice-transcript-text ${isListening ? 'listening' : ''} ${isCommandMatch ? 'command-match' : ''}`}>
-              &ldquo;{transcript}&rdquo;
-            </p>
-          ) : (
-            <p className="voice-transcript-text placeholder" style={{ opacity: 0.5 }}>
-              Awaiting speech capture...
-            </p>
-          )}
-
-          {isListening && (
-            <div className="waveform-container">
-              <div className="waveform-bar"></div>
-              <div className="waveform-bar"></div>
-              <div className="waveform-bar"></div>
-              <div className="waveform-bar"></div>
-              <div className="waveform-bar"></div>
-            </div>
-          )}
-          
-          {isSpeaking && (
-            <Volume2 size={16} color="var(--emerald)" style={{ marginLeft: 'auto', animation: 'pulse-dot-active 1s infinite alternate' }} />
-          )}
-        </div>
-
-        {/* Confirmation prompt for microphone inputs */}
-        {showConfirmPrompt && (
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', marginBottom: '0.25rem' }}>
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => {
-                setTranscript('');
-                setShowConfirmPrompt(false);
-                setStatusMessage('Tap the microphone to issue voice commands');
-              }}
-              style={{ flex: 1, padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: 'auto', background: 'rgba(255,255,255,0.02)' }}
-            >
-              Discard & Record Again
-            </button>
-            <button 
-              className="btn btn-primary" 
-              onClick={() => {
-                setShowConfirmPrompt(false);
-                processCommand(transcript);
-              }}
-              style={{ flex: 1, padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: 'auto', background: 'var(--blue)', borderColor: 'var(--blue)' }}
-            >
-              Confirm & Send
-            </button>
-          </div>
-        )}
-
-        <div className="voice-suggestions-area">
-          <h3 className="voice-suggestions-title">Quick voice shortcuts</h3>
-          <div className="voice-suggestion-pills">
-            <button className="voice-suggestion-pill" onClick={() => handleSuggestionClick("Read today's profit")}>
-              🎙️ Profit Today
-            </button>
-            <button className="voice-suggestion-pill" onClick={() => handleSuggestionClick("Read today's revenue")}>
-              🎙️ Revenue Today
-            </button>
-            <button className="voice-suggestion-pill" onClick={() => handleSuggestionClick("What is the stock value?")}>
-              🎙️ Stock Valuation
-            </button>
-            <button className="voice-suggestion-pill" onClick={() => handleSuggestionClick("Go to data manager")}>
-              🎙️ Navigate to Database
-            </button>
-            <button className="voice-suggestion-pill" onClick={() => handleSuggestionClick("Sync spreadsheet")}>
-              🎙️ Sync Sheets
-            </button>
-          </div>
+      {/* Voice Shortcuts */}
+      <div>
+        <div className="speaker-suggestions-title">Voice Shortcuts</div>
+        <div className="speaker-suggestion-pills">
+          <button className="speaker-suggestion-pill" onClick={() => handleSuggestionClick("Read today's profit")}>
+            Profit Today
+          </button>
+          <button className="speaker-suggestion-pill" onClick={() => handleSuggestionClick("Read today's revenue")}>
+            Revenue Today
+          </button>
+          <button className="speaker-suggestion-pill" onClick={() => handleSuggestionClick("What is the stock value?")}>
+            Stock Valuation
+          </button>
         </div>
       </div>
+
+      {/* Search Command Input */}
+      <div style={{ position: 'relative', width: '100%' }}>
+        <input 
+          type="text"
+          className="form-input"
+          placeholder="Speak or type store command..."
+          value={transcript}
+          onChange={(e) => setTranscript(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && transcript) {
+              processCommand(transcript);
+            }
+          }}
+          style={{
+            width: '100%',
+            background: '#ffffff',
+            border: 'none',
+            borderRadius: '10px',
+            color: 'var(--text-primary)',
+            padding: '0.65rem 1rem',
+            fontFamily: 'var(--font-family)',
+            fontSize: '0.9rem',
+            boxShadow: 'none'
+          }}
+        />
+      </div>
+
+      {/* Confirmation prompt for manual mic inputs */}
+      {showConfirmPrompt && (
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '-0.25rem' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => {
+              setTranscript('');
+              setShowConfirmPrompt(false);
+              setStatusMessage('Tap the microphone to issue voice commands');
+            }}
+            style={{ flex: 1, padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: 'rgba(255,255,255,0.15)', color: '#ffffff', border: 'none' }}
+          >
+            Discard
+          </button>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => {
+              setShowConfirmPrompt(false);
+              processCommand(transcript);
+            }}
+            style={{ flex: 1, padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: '#ffffff', color: 'var(--campaign-bg)', border: 'none' }}
+          >
+            Confirm
+          </button>
+        </div>
+      )}
+
+      {/* DYNAMIC TRANSCRIPTION AREA BELOW SPEAKER (expands height dynamically) */}
+      {(transcript || aiResponse) && (
+        <div style={{ 
+          marginTop: '0.5rem',
+          paddingTop: '0.75rem', 
+          borderTop: '1px solid rgba(255, 255, 255, 0.15)',
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '0.6rem',
+          transition: 'all 0.3s ease'
+        }}>
+          {transcript && (
+            <div style={{ background: 'rgba(255, 255, 255, 0.12)', borderRadius: '10px', padding: '0.5rem 0.75rem' }}>
+              <span style={{ fontSize: '0.65rem', color: 'rgba(255, 255, 255, 0.75)', fontWeight: 700, display: 'block', textTransform: 'uppercase', marginBottom: '0.15rem' }}>Spoken input</span>
+              <p style={{ fontSize: '0.82rem', color: '#ffffff', margin: 0 }}>"{transcript}"</p>
+            </div>
+          )}
+          {aiResponse && (
+            <div style={{ background: 'rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '0.5rem 0.75rem', borderLeft: '3px solid #22c55e' }}>
+              <span style={{ fontSize: '0.65rem', color: 'rgba(255, 255, 255, 0.75)', fontWeight: 700, display: 'block', textTransform: 'uppercase', marginBottom: '0.15rem' }}>AI Response</span>
+              <p style={{ fontSize: '0.82rem', color: '#ffffff', margin: 0 }}>{aiResponse}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

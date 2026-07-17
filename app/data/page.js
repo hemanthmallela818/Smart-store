@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, Suspense, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { 
   Search, 
   ArrowUpDown, 
@@ -13,13 +14,14 @@ import {
   CheckCircle,
   XCircle,
   IndianRupee,
-  Plus
+  Plus,
+  Bell
 } from 'lucide-react';
 
 import { useData } from '../context';
 import Header from '../Header';
 
-export default function DataManager() {
+function DataManager() {
   const {
     data,
     loading,
@@ -36,6 +38,15 @@ export default function DataManager() {
 
   // Tab and filtering states
   const [activeTab, setActiveTab] = useState('inventory');
+  
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  
+  useEffect(() => {
+    if (tabParam === 'inventory' || tabParam === 'sales') {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
   
   const [inventorySearch, setInventorySearch] = useState('');
   const [inventorySort, setInventorySort] = useState({ key: 'name', desc: false });
@@ -432,435 +443,475 @@ export default function DataManager() {
         ))}
       </div>
 
-      {/* Sync Header */}
+      {/* Sync Header (Sidebar) */}
       <Header />
 
-      {/* Connection Failure banner if Sheet error exists */}
-      {error && (
-        <div className="alert-banner alert-red" style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px dashed var(--rose)' }}>
-          <div className="alert-content">
-            <AlertTriangle size={16} />
-            <span><strong>Spreadsheet Connection Offline:</strong> {error}. Reverting to local store database cache.</span>
+      {/* Main Content Panel */}
+      <main className="main-content">
+        {/* Top Header Bar */}
+        <header className="content-header">
+          <div className="content-header-left">
+            <span className="welcome-text">Welcome back, Admin 👋</span>
+            <h1 className="page-title">Database Manager</h1>
           </div>
-        </div>
-      )}
-
-      {/* Database Tables Section */}
-      <section className="tables-section">
-        <div className="table-tabs-header">
-          <div className="tabs-list">
-            <button 
-              className={`tab-trigger ${activeTab === 'inventory' ? 'active' : ''}`}
-              onClick={() => setActiveTab('inventory')}
-            >
-              <Layers size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
-              Inventory Stock
-            </button>
-            <button 
-              className={`tab-trigger ${activeTab === 'sales' ? 'active' : ''}`}
-              onClick={() => setActiveTab('sales')}
-            >
-              <ShoppingCart size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
-              Sales Ledger
-            </button>
-          </div>
-
-          {/* Search/Filters */}
-          {activeTab === 'inventory' ? (
-            <div className="table-controls">
-              <div className="search-input-wrapper">
-                <Search size={14} className="search-icon" />
-                <input 
-                  type="text" 
-                  placeholder="Search inventory..." 
-                  className="search-input"
-                  value={inventorySearch}
-                  onChange={(e) => setInventorySearch(e.target.value)}
-                />
-              </div>
-              <select 
-                className="filter-select"
-                value={inventoryFilter}
-                onChange={(e) => setInventoryFilter(e.target.value)}
-              >
-                <option value="all">All Inventory Health</option>
-                <option value="low-stock">⚠️ Low Stock Limit (&lt;10)</option>
-                <option value="expired-soon-7">🔴 Expiring Soon (&lt;7 days)</option>
-                <option value="expired-soon-30">🟡 Expiring Soon (&lt;30 days)</option>
-                <option value="non-perishable">🟢 Non-Perishables</option>
-              </select>
-              <button 
-                className="btn btn-primary" 
-                onClick={handleOpenAddInventory}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 0.85rem' }}
-              >
-                <Plus size={14} /> Add Item
+          <div className="content-header-right">
+            <div className="header-icons">
+              <button className="header-icon-btn" aria-label="Notifications">
+                <Bell size={16} />
               </button>
             </div>
-          ) : (
-            <div className="table-controls">
-              <div className="search-input-wrapper">
-                <Search size={14} className="search-icon" />
-                <input 
-                  type="text" 
-                  placeholder="Search sales..." 
-                  className="search-input"
-                  value={salesSearch}
-                  onChange={(e) => setSalesSearch(e.target.value)}
-                />
-              </div>
-              
-              <select 
-                className="filter-select"
-                value={salesItemFilter}
-                onChange={(e) => setSalesItemFilter(e.target.value)}
-              >
-                <option value="all">All Products</option>
-                {getUniqueItemNames().map(name => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
+            <div className="profile-avatar">
+              <div className="avatar-img">A</div>
+              <span className="avatar-name">Admin Retailer</span>
+            </div>
+          </div>
+        </header>
 
-              <div className="date-picker-group">
-                <Calendar size={14} />
-                <input 
-                  type="date" 
-                  className="date-input" 
-                  value={salesStartDate} 
-                  onChange={(e) => setSalesStartDate(e.target.value)} 
-                  title="Start date filter"
-                />
-                <span>to</span>
-                <input 
-                  type="date" 
-                  className="date-input" 
-                  value={salesEndDate} 
-                  onChange={(e) => setSalesEndDate(e.target.value)} 
-                  title="End date filter"
-                />
-              </div>
+        {/* Connection Failure banner if Sheet error exists */}
+        {error && (
+          <div className="alert-banner">
+            <div className="alert-content">
+              <AlertTriangle size={16} />
+              <span><strong>Spreadsheet Connection Offline:</strong> {error}. Reverting to local store database cache.</span>
+            </div>
+          </div>
+        )}
+
+        {/* Database Tables Section */}
+        <section className="tables-section">
+          <div className="table-tabs-header">
+            <div className="tabs-list">
               <button 
-                className="btn btn-primary" 
-                onClick={handleOpenAddSales}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 0.85rem' }}
+                className={`tab-trigger ${activeTab === 'inventory' ? 'active' : ''}`}
+                onClick={() => setActiveTab('inventory')}
               >
-                <Plus size={14} /> Add Transaction
+                <Layers size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
+                Inventory Stock
               </button>
+              <button 
+                className={`tab-trigger ${activeTab === 'sales' ? 'active' : ''}`}
+                onClick={() => setActiveTab('sales')}
+              >
+                <ShoppingCart size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
+                Sales Ledger
+              </button>
+            </div>
+
+            {/* Search/Filters */}
+            {activeTab === 'inventory' ? (
+              <div className="table-controls">
+                <div className="search-input-wrapper">
+                  <Search size={14} className="search-icon" />
+                  <input 
+                    type="text" 
+                    placeholder="Search inventory..." 
+                    className="search-input"
+                    value={inventorySearch}
+                    onChange={(e) => setInventorySearch(e.target.value)}
+                  />
+                </div>
+                <select 
+                  className="filter-select"
+                  value={inventoryFilter}
+                  onChange={(e) => setInventoryFilter(e.target.value)}
+                >
+                  <option value="all">All Inventory Health</option>
+                  <option value="low-stock">⚠️ Low Stock Limit (&lt;10)</option>
+                  <option value="expired-soon-7">🔴 Expiring Soon (&lt;7 days)</option>
+                  <option value="expired-soon-30">🟡 Expiring Soon (&lt;30 days)</option>
+                  <option value="non-perishable">🟢 Non-Perishables</option>
+                </select>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleOpenAddInventory}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 0.85rem' }}
+                >
+                  <Plus size={14} /> Add Item
+                </button>
+              </div>
+            ) : (
+              <div className="table-controls">
+                <div className="search-input-wrapper">
+                  <Search size={14} className="search-icon" />
+                  <input 
+                    type="text" 
+                    placeholder="Search sales..." 
+                    className="search-input"
+                    value={salesSearch}
+                    onChange={(e) => setSalesSearch(e.target.value)}
+                  />
+                </div>
+                
+                <select 
+                  className="filter-select"
+                  value={salesItemFilter}
+                  onChange={(e) => setSalesItemFilter(e.target.value)}
+                >
+                  <option value="all">All Products</option>
+                  {getUniqueItemNames().map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+
+                <div className="date-picker-group">
+                  <Calendar size={14} />
+                  <input 
+                    type="date" 
+                    className="date-input" 
+                    value={salesStartDate} 
+                    onChange={(e) => setSalesStartDate(e.target.value)} 
+                    title="Start date filter"
+                  />
+                  <span>to</span>
+                  <input 
+                    type="date" 
+                    className="date-input" 
+                    value={salesEndDate} 
+                    onChange={(e) => setSalesEndDate(e.target.value)} 
+                    title="End date filter"
+                  />
+                </div>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleOpenAddSales}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 0.85rem' }}
+                >
+                  <Plus size={14} /> Add Transaction
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Tab 1: Inventory Table */}
+          {activeTab === 'inventory' && (
+            <div className="table-scroll-container">
+              {filteredInventoryList.length > 0 ? (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th onClick={() => handleSort('inventory', 'name')}>Item Name <ArrowUpDown size={12} className="sort-indicator" /></th>
+                      <th onClick={() => handleSort('inventory', 'quantity')}>Quantity <ArrowUpDown size={12} className="sort-indicator" /></th>
+                      <th>Units</th>
+                      <th onClick={() => handleSort('inventory', 'costPrice')}>Cost Price <ArrowUpDown size={12} className="sort-indicator" /></th>
+                      <th onClick={() => handleSort('inventory', 'sellingPrice')}>Selling Price <ArrowUpDown size={12} className="sort-indicator" /></th>
+                      <th>Profit Margin</th>
+                      <th onClick={() => handleSort('inventory', 'expiryDate')}>Expiry Date <ArrowUpDown size={12} className="sort-indicator" /></th>
+                      <th>Expiry Alert</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredInventoryList.map(item => (
+                      <tr key={item.row}>
+                        {/* Name: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Item name') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Inventory', item.row, 'Item name', item.name)}
+                        >
+                          {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Item name' ? (
+                            <input 
+                              type="text" 
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            getRenderValue('Inventory', item.row, 'Item name', item.name)
+                          )}
+                        </td>
+                        
+                        {/* Quantity: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Quantity') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Inventory', item.row, 'Quantity', item.quantity)}
+                        >
+                          {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Quantity' ? (
+                            <input 
+                              type="number" 
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            Number(getRenderValue('Inventory', item.row, 'Quantity', item.quantity)).toLocaleString()
+                          )}
+                        </td>
+                        
+                        {/* Units: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Units') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Inventory', item.row, 'Units', item.units)}
+                        >
+                          {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Units' ? (
+                            <input 
+                              type="text" 
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            getRenderValue('Inventory', item.row, 'Units', item.units)
+                          )}
+                        </td>
+                        
+                        {/* Cost Price: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Cost price') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Inventory', item.row, 'Cost price', item.costPrice)}
+                        >
+                          {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Cost price' ? (
+                            <input 
+                              type="number" 
+                              step="0.01"
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            `₹${Number(getRenderValue('Inventory', item.row, 'Cost price', item.costPrice)).toFixed(2)}`
+                          )}
+                        </td>
+                        
+                        {/* Selling Price: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Selling price') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Inventory', item.row, 'Selling price', item.sellingPrice)}
+                        >
+                          {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Selling price' ? (
+                            <input 
+                              type="number" 
+                              step="0.01"
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            `₹${Number(getRenderValue('Inventory', item.row, 'Selling price', item.sellingPrice)).toFixed(2)}`
+                          )}
+                        </td>
+
+                        {/* Profit Margin */}
+                        <td>
+                          {(() => {
+                            const liveCost = Number(getRenderValue('Inventory', item.row, 'Cost price', item.costPrice));
+                            const liveSell = Number(getRenderValue('Inventory', item.row, 'Selling price', item.sellingPrice));
+                            const liveMargin = liveCost > 0 ? (liveSell - liveCost) / liveCost : 0;
+                            return `${(liveMargin * 100).toFixed(1)}%`;
+                          })()}
+                        </td>
+                        
+                        {/* Expiry Date: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Expiry date') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Inventory', item.row, 'Expiry date', item.expiryDate)}
+                        >
+                          {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Expiry date' ? (
+                            <input 
+                              type="date" 
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            getRenderValue('Inventory', item.row, 'Expiry date', item.expiryDate) || '—'
+                          )}
+                        </td>
+
+                        {/* Alerts */}
+                        <td>
+                          {item.quantity < 10 && (
+                            <span className="badge badge-low-stock" style={{ marginRight: '0.4rem' }}>Low Stock</span>
+                          )}
+                          {(() => {
+                            const liveExpiry = getRenderValue('Inventory', item.row, 'Expiry date', item.expiryDate);
+                            if (!liveExpiry || liveExpiry === '—') return <span className="badge badge-non-perishable">Non-perishable</span>;
+                            
+                            let expiryDateObj = null;
+                            const val = String(liveExpiry).trim();
+                            if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                              expiryDateObj = new Date(val);
+                            } else {
+                              const dmyMatch = val.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+                              if (dmyMatch) {
+                                expiryDateObj = new Date(dmyMatch[3], Number(dmyMatch[2]) - 1, dmyMatch[1]);
+                              } else {
+                                expiryDateObj = new Date(val);
+                              }
+                            }
+                            
+                            const todayObj = new Date();
+                            todayObj.setHours(0,0,0,0);
+                            
+                            if (!expiryDateObj || isNaN(expiryDateObj.getTime())) return <span className="badge badge-non-perishable">Invalid Date</span>;
+                            
+                            const diff = expiryDateObj.getTime() - todayObj.getTime();
+                            const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                            
+                            if (days <= 7) return <span className="badge badge-expiry-7">Expires soon ({days}d)</span>;
+                            if (days <= 30) return <span className="badge badge-expiry-30">Warning ({days}d)</span>;
+                            return <span className="badge badge-safe">Safe</span>;
+                          })()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="empty-state">No inventory stock records found matching filters.</div>
+              )}
             </div>
           )}
-        </div>
 
-        {/* Tab 1: Inventory Table */}
-        {activeTab === 'inventory' && (
-          <div className="table-scroll-container">
-            {filteredInventoryList.length > 0 ? (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th onClick={() => handleSort('inventory', 'name')}>Item Name <ArrowUpDown size={12} className="sort-indicator" /></th>
-                    <th onClick={() => handleSort('inventory', 'quantity')}>Quantity <ArrowUpDown size={12} className="sort-indicator" /></th>
-                    <th>Units</th>
-                    <th onClick={() => handleSort('inventory', 'costPrice')}>Cost Price <ArrowUpDown size={12} className="sort-indicator" /></th>
-                    <th onClick={() => handleSort('inventory', 'sellingPrice')}>Selling Price <ArrowUpDown size={12} className="sort-indicator" /></th>
-                    <th>Profit Margin</th>
-                    <th onClick={() => handleSort('inventory', 'expiryDate')}>Expiry Date <ArrowUpDown size={12} className="sort-indicator" /></th>
-                    <th>Expiry Alert</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredInventoryList.map(item => (
-                    <tr key={item.row}>
-                      {/* Name: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Item name') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Inventory', item.row, 'Item name', item.name)}
-                      >
-                        {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Item name' ? (
-                          <input 
-                            type="text" 
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          getRenderValue('Inventory', item.row, 'Item name', item.name)
-                        )}
-                      </td>
-                      
-                      {/* Quantity: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Quantity') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Inventory', item.row, 'Quantity', item.quantity)}
-                      >
-                        {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Quantity' ? (
-                          <input 
-                            type="number" 
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          Number(getRenderValue('Inventory', item.row, 'Quantity', item.quantity)).toLocaleString()
-                        )}
-                      </td>
-                      
-                      {/* Units: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Units') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Inventory', item.row, 'Units', item.units)}
-                      >
-                        {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Units' ? (
-                          <input 
-                            type="text" 
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          getRenderValue('Inventory', item.row, 'Units', item.units)
-                        )}
-                      </td>
-                      
-                      {/* Cost Price: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Cost price') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Inventory', item.row, 'Cost price', item.costPrice)}
-                      >
-                        {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Cost price' ? (
-                          <input 
-                            type="number" 
-                            step="0.01"
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          `₹${Number(getRenderValue('Inventory', item.row, 'Cost price', item.costPrice)).toFixed(2)}`
-                        )}
-                      </td>
-                      
-                      {/* Selling Price: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Selling price') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Inventory', item.row, 'Selling price', item.sellingPrice)}
-                      >
-                        {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Selling price' ? (
-                          <input 
-                            type="number" 
-                            step="0.01"
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          `₹${Number(getRenderValue('Inventory', item.row, 'Selling price', item.sellingPrice)).toFixed(2)}`
-                        )}
-                      </td>
-
-                      {/* Profit Margin */}
-                      <td>
-                        {(() => {
-                          const liveCost = Number(getRenderValue('Inventory', item.row, 'Cost price', item.costPrice));
-                          const liveSell = Number(getRenderValue('Inventory', item.row, 'Selling price', item.sellingPrice));
-                          const liveMargin = liveCost > 0 ? (liveSell - liveCost) / liveCost : 0;
-                          return `${(liveMargin * 100).toFixed(1)}%`;
-                        })()}
-                      </td>
-                      
-                      {/* Expiry Date: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Inventory', item.row, 'Expiry date') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Inventory', item.row, 'Expiry date', item.expiryDate)}
-                      >
-                        {editingCell?.tab === 'Inventory' && editingCell?.row === item.row && editingCell?.colName === 'Expiry date' ? (
-                          <input 
-                            type="date" 
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          getRenderValue('Inventory', item.row, 'Expiry date', item.expiryDate) || '—'
-                        )}
-                      </td>
-
-                      {/* Alerts */}
-                      <td>
-                        {item.quantity < 10 && (
-                          <span className="badge badge-low-stock" style={{ marginRight: '0.4rem' }}>Low Stock</span>
-                        )}
-                        {(() => {
-                          const liveExpiry = getRenderValue('Inventory', item.row, 'Expiry date', item.expiryDate);
-                          if (!liveExpiry) return <span className="badge badge-non-perishable">Non-perishable</span>;
-                          const expiryDateObj = new Date(liveExpiry);
-                          const todayObj = new Date();
-                          todayObj.setHours(0,0,0,0);
-                          
-                          if (isNaN(expiryDateObj.getTime())) return <span className="badge badge-non-perishable">Invalid Date</span>;
-                          
-                          const diff = expiryDateObj.getTime() - todayObj.getTime();
-                          const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                          
-                          if (days <= 7) return <span className="badge badge-expiry-7">Expires soon ({days}d)</span>;
-                          if (days <= 30) return <span className="badge badge-expiry-30">Warning ({days}d)</span>;
-                          return <span className="badge badge-safe">Safe</span>;
-                        })()}
-                      </td>
+          {/* Tab 2: Sales Table */}
+          {activeTab === 'sales' && (
+            <div className="table-scroll-container">
+              {filteredSalesList.length > 0 ? (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th onClick={() => handleSort('sales', 'name')}>Item Name <ArrowUpDown size={12} className="sort-indicator" /></th>
+                      <th onClick={() => handleSort('sales', 'quantity')}>Quantity Sold <ArrowUpDown size={12} className="sort-indicator" /></th>
+                      <th>Units</th>
+                      <th onClick={() => handleSort('sales', 'totalPrice')}>Total Sales Price <ArrowUpDown size={12} className="sort-indicator" /></th>
+                      <th onClick={() => handleSort('sales', 'date')}>Transaction Date <ArrowUpDown size={12} className="sort-indicator" /></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="empty-state">No inventory stock records found matching filters.</div>
-            )}
-          </div>
-        )}
+                  </thead>
+                  <tbody>
+                    {filteredSalesList.map(s => (
+                      <tr key={s.row}>
+                        {/* Name: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Sales', s.row, 'Item name') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Sales', s.row, 'Item name', s.name)}
+                        >
+                          {editingCell?.tab === 'Sales' && editingCell?.row === s.row && editingCell?.colName === 'Item name' ? (
+                            <input 
+                              type="text" 
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            getRenderValue('Sales', s.row, 'Item name', s.name)
+                          )}
+                        </td>
+                        
+                        {/* Quantity: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Sales', s.row, 'Quantity') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Sales', s.row, 'Quantity', s.quantity)}
+                        >
+                          {editingCell?.tab === 'Sales' && editingCell?.row === s.row && editingCell?.colName === 'Quantity' ? (
+                            <input 
+                              type="number" 
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            Number(getRenderValue('Sales', s.row, 'Quantity', s.quantity)).toLocaleString()
+                          )}
+                        </td>
+                        
+                        {/* Units: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Sales', s.row, 'Units') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Sales', s.row, 'Units', s.units)}
+                        >
+                          {editingCell?.tab === 'Sales' && editingCell?.row === s.row && editingCell?.colName === 'Units' ? (
+                            <input 
+                              type="text" 
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            getRenderValue('Sales', s.row, 'Units', s.units)
+                          )}
+                        </td>
+                        
+                        {/* Total Price: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Sales', s.row, 'Total price') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Sales', s.row, 'Total price', s.totalPrice)}
+                        >
+                          {editingCell?.tab === 'Sales' && editingCell?.row === s.row && editingCell?.colName === 'Total price' ? (
+                            <input 
+                              type="number" 
+                              step="0.01"
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            `₹${Number(getRenderValue('Sales', s.row, 'Total price', s.totalPrice)).toFixed(2)}`
+                          )}
+                        </td>
+                        
+                        {/* Date: Editable */}
+                        <td 
+                          className={`editable-cell ${isCellUnsaved('Sales', s.row, 'Date') ? 'unsaved' : ''}`}
+                          onClick={() => handleCellClick('Sales', s.row, 'Date', s.date)}
+                        >
+                          {editingCell?.tab === 'Sales' && editingCell?.row === s.row && editingCell?.colName === 'Date' ? (
+                            <input 
+                              type="date" 
+                              className="cell-edit-input"
+                              value={editValue} 
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellSave}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
+                              autoFocus
+                            />
+                          ) : (
+                            getRenderValue('Sales', s.row, 'Date', s.date) || '—'
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="empty-state">No transaction ledger records matched filters.</div>
+              )}
+            </div>
+          )}
+        </section>
 
-        {/* Tab 2: Sales Table */}
-        {activeTab === 'sales' && (
-          <div className="table-scroll-container">
-            {filteredSalesList.length > 0 ? (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th onClick={() => handleSort('sales', 'name')}>Item Name <ArrowUpDown size={12} className="sort-indicator" /></th>
-                    <th onClick={() => handleSort('sales', 'quantity')}>Quantity Sold <ArrowUpDown size={12} className="sort-indicator" /></th>
-                    <th>Units</th>
-                    <th onClick={() => handleSort('sales', 'totalPrice')}>Total Sales Price <ArrowUpDown size={12} className="sort-indicator" /></th>
-                    <th onClick={() => handleSort('sales', 'date')}>Transaction Date <ArrowUpDown size={12} className="sort-indicator" /></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSalesList.map(s => (
-                    <tr key={s.row}>
-                      {/* Name: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Sales', s.row, 'Item name') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Sales', s.row, 'Item name', s.name)}
-                      >
-                        {editingCell?.tab === 'Sales' && editingCell?.row === s.row && editingCell?.colName === 'Item name' ? (
-                          <input 
-                            type="text" 
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          getRenderValue('Sales', s.row, 'Item name', s.name)
-                        )}
-                      </td>
-                      
-                      {/* Quantity: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Sales', s.row, 'Quantity') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Sales', s.row, 'Quantity', s.quantity)}
-                      >
-                        {editingCell?.tab === 'Sales' && editingCell?.row === s.row && editingCell?.colName === 'Quantity' ? (
-                          <input 
-                            type="number" 
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          Number(getRenderValue('Sales', s.row, 'Quantity', s.quantity)).toLocaleString()
-                        )}
-                      </td>
-                      
-                      {/* Units: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Sales', s.row, 'Units') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Sales', s.row, 'Units', s.units)}
-                      >
-                        {editingCell?.tab === 'Sales' && editingCell?.row === s.row && editingCell?.colName === 'Units' ? (
-                          <input 
-                            type="text" 
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          getRenderValue('Sales', s.row, 'Units', s.units)
-                        )}
-                      </td>
-                      
-                      {/* Total Price: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Sales', s.row, 'Total price') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Sales', s.row, 'Total price', s.totalPrice)}
-                      >
-                        {editingCell?.tab === 'Sales' && editingCell?.row === s.row && editingCell?.colName === 'Total price' ? (
-                          <input 
-                            type="number" 
-                            step="0.01"
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          `₹${Number(getRenderValue('Sales', s.row, 'Total price', s.totalPrice)).toFixed(2)}`
-                        )}
-                      </td>
-                      
-                      {/* Date: Editable */}
-                      <td 
-                        className={`editable-cell ${isCellUnsaved('Sales', s.row, 'Date') ? 'unsaved' : ''}`}
-                        onClick={() => handleCellClick('Sales', s.row, 'Date', s.date)}
-                      >
-                        {editingCell?.tab === 'Sales' && editingCell?.row === s.row && editingCell?.colName === 'Date' ? (
-                          <input 
-                            type="date" 
-                            className="cell-edit-input"
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleCellSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
-                            autoFocus
-                          />
-                        ) : (
-                          getRenderValue('Sales', s.row, 'Date', s.date) || '—'
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="empty-state">No transaction ledger records matched filters.</div>
-            )}
-          </div>
-        )}
-      </section>
+        {/* Footer */}
+        <footer style={{ marginTop: 'auto', paddingTop: '2rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <p>Smart Store Database Management &bull; Live Google Sheets Integration</p>
+        </footer>
+      </main>
 
       {/* Floating Save Action Bar */}
       {getEditCount() > 0 && (
@@ -1128,11 +1179,21 @@ export default function DataManager() {
           </div>
         </div>
       )}
-
-
-      <footer style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-        <p>Smart Store Database Management &bull; Live Google Sheets Integration</p>
-      </footer>
     </div>
+  );
+}
+
+export default function DataManagerPage() {
+  return (
+    <Suspense fallback={
+      <div className="dashboard-container" style={{ justifyContent: 'center', alignItems: 'center', height: '80vh', border: 'none', background: 'transparent' }}>
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Loading Database Manager...</p>
+        </div>
+      </div>
+    }>
+      <DataManager />
+    </Suspense>
   );
 }
