@@ -157,7 +157,7 @@ function CatalogDashboard() {
         )}
 
         {/* Top Grid Row: Voice Agent & Transaction Analytics Side-by-Side */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <div className="grid-layout-top">
           {/* Left Column: Voice Assistant */}
           <VoiceAssistant />
 
@@ -220,7 +220,7 @@ function CatalogDashboard() {
         </div>
 
         {/* 3. DETAILS GRID: Left Column (3 Wavy KPI Cards), Right Column (Pie Chart + Dials and Table below graph) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: '1.5rem' }}>
+        <div className="grid-layout-bottom">
           
           {/* KPI Sparkline Cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -300,7 +300,7 @@ function CatalogDashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             {/* Categories & circular stock progress elements (MOVED BELOW GRAPH) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '1.5rem' }}>
+            <div className="grid-layout-metrics">
               
               {/* Product Breakdown Pie Chart */}
               <div className="clean-card circle-metric-card">
